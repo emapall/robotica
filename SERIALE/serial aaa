@@ -1,0 +1,15 @@
+cout<<"Inizializzazione Porta Seriale...";
+  
+  int status;
+  char porta[12] = "/dev/ttyACM";
+  for (int n =0; n<10; n++)
+	{
+		sprintf(porta, "/dev/ttyACM%d", n);
+		status = serialport_init(porta, 9600);
+		if(status!=-1)
+			break;
+	}
+  if ( status == -1){
+    printf("ERRORE APERTURA PORTA SERIALE");
+    exit(-1);}
+  cout<<"ok! connected on "<<porta<<endl; 

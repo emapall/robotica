@@ -1,0 +1,108 @@
+Hello, 
+I was trying to detect a ball in opencv using the in built class SimpleBlobDetector (that does all by herself). But the point is that the ball is not so much difforming from the background,I tried to filter by circularity and not by something else and most important thing the ball is covered in alluminium paper such that it's reflecting and so on one side of the ball there is a clear spot and on the other side a darker one + shadow. [the infamous ball][1]
+
+now, if i use the code of simpleblobdetector with the following params 
+
+    params.filterByCircularity = true;
+    params.filterByArea = false;
+    params.filterByColor = false;
+    params.filterByConvexity = false;
+    params.filterByInertia = false;
+    params.minDistBetweenBlobs = 0;
+
+    params.minCircularity = 0.5;
+    params.maxCircularity = 1.5;
+
+ (which was as i said before)
+
+I get a tons of points (mainly on the countourn of the ball and on the background)
+
+now, what i wanted  to tell you is that if i use the canny contourns (or edge?) algorithm (copy and paste this code: http://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/find_contours/find_contours.html#find-contours ) it happens that, with a low treshold on the algo, i can actually get the ball perfectly contourned (with some other things of course, which i aim to delete)
+
+
+my question is: the simpleBlobDetector doens't work well but i know it can get good edges detecting by chaning canny's tresh. The point is that with his function "detect" i can't actually act on the tresh, so i wanted to know whether there was a method of using a sequence of single functions (like canny, findCountourns) to have the same result of simpleBlobDetector::detect but without using it.
+
+To say this in another way, i know that somehow the pre built function already does it but THE ONLY THING i wanted to do was to change the canny treshold. Help?? :O
+
+PS: i know watched the function findContourns, the source code. It doesn't seem to use this canny edges detection actually, but then i was wondering whether where was aything to do in order to get the countourns out of the tresh I decide. 
+
+If u mabye wanted the source code of the program that doesn't detect the balls :
+
+    #define ii pair<int,int>
+
+    using namespace cv;
+    using namespace std;
+
+    //http://www.learnopencv.com/blob-detection-using-opencv-python-c/
+    
+    
+    
+    int main(int argc, char** argv)
+    {
+        Mat imm,imm2;
+        namedWindow("roba",WINDOW_FREERATIO);
+        imm=imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
+        if ( !imm.data )
+        {
+            printf("No image data \n");
+            return -1;
+        }
+    
+        // Setup SimpleBlobDetector parameters.
+    SimpleBlobDetector::Params params;
+    
+    	// Change thresholds
+    	params.minThreshold = 10;
+    	params.maxThreshold = 200;
+    
+    // Filter by Circularity
+    params.filterByCircularity = true;
+    params.filterByArea = false;
+    params.filterByColor = false;
+    params.filterByConvexity = false;
+    params.filterByInertia = false;
+    params.minDistBetweenBlobs = 0;
+    
+    params.minCircularity = 0.5;
+    params.maxCircularity = 1.5;
+    
+    params.maxArea = 50000;
+    params.minArea = 0;
+    
+    Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
+    cout<<"STO UTILIZZANDO "<<CV_MAJOR_VERSION<<endl;
+    
+    std::vector<KeyPoint> keypoints;
+    detector->detect( imm, keypoints);
+    
+    cout<<"ne ho trovati "<<keypoints.size()<<endl;
+    
+        drawKeypoints( imm, keypoints, imm2, Scalar(0,250,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+        imwrite("immagine2.png", imm2);
+    
+        imm2 = imread("immagine2.png", CV_LOAD_IMAGE_COLOR);
+    
+        for(int i=0; i<keypoints.size(); i++){
+        cout<<"HO TROVATO  QUALCOSA a: x"<<(int)keypoints[i].pt.x<<" y "<<(int)keypoints[i].pt.y<<endl;
+    
+        circle(imm2,
+                Point((int)keypoints[i].pt.x,(int)keypoints[i].pt.y),
+                5,
+                Scalar(250,0,255));
+        }
+    
+    
+    
+        imshow("roba",imm2);
+        imwrite("immagine2.png", imm2);
+        waitKey(0);
+        return 0;
+    }
+
+  [1]: http://i.stack.imgur.com/akvRv.jpg
+
+
+
+
+
+ 

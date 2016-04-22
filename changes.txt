@@ -1,0 +1,46 @@
+3 APRILE, 22:00 CASA:
+-È IL FILE CHE C'ERA SU MEGA, il più nuovo reperibile (10 marzo?)
+-va viso che c'è dentro e che faccia, poi scritto.
+	- MANCA LA FUNZIONE PRIMOX, PRIMOY! (STRANO....)
+	- MANCA ANCHE IL GAP! 
+bisogna fare un mergione
+RISULTATI DEL MERGE:
+	ASSEMBLEA/MIO 
+- angolo tra e angolo medio linea sono uguali, se non che quello di balle usa l' int[] per il vett e io uso i pointer
+- c'è il trova primo nero!
+- la bfs principale, a parte il primo nero, non ha diff
+- disegna linea è uguale a tratta linea principale
+- bfs isole (la seconda) è meglio su quello di balle, ho tolto un po di merda che era solo commentata
+	ci copio sopra quella di casa perchè tutto sommato non è bruttissima e va molto meglio 
+- hdng isole ho tolto solo un po di cout di debug. ok :)
+- spazio variabili è meglio sul pc di balle: non c'è la cosa del centro delle isole e ho tolto anche un vett_quanti che non so che sia...
+
+- MAIN: 
+	la ricerca binaria isole è ok, è solo che in quello di balle manca proprio il gap!
+	poi manca anche un po di robetta qui e li, ma niente di che: il codice di balle è semplicemente meno sporco
+	
+
+
+5 APRILE, 21:10, CASA
+-AGGIUNTA LA CONDIZIONE DI GAP per vedere se è nell'immagine
+-aggiungo la funzione per calcolare l'errore e la correzione da applicare in base alla linea principale
+
+
+13 APRILE, CASA: 
+agginto il trova palle fatto a scuola, il 7 APR.
+- DA IMPLEMENTARE BENE IL CERCAPALLE CON SOLO IL TRESH BINARIO.
+- in genere, da rivedere e pulire il codice. 
+- DA FARE GITHUB!
+
+
+14 APR, SCUOLA:
+- METTIAMO A POSTO IL PROGRAMMA PRINCIPALE
+- E' A POSTO, MANCA IL VERDE. FARLO
+- FATTO IL VERDE! (da debuggare)
+- VERDE FATTO. 
+!!!!!!!!<<OCCHIO AI LIMITI!!!!>>>!!!!!!!!!!!!!!!
+
+17 APR, CASA
+- ancora bene da definire cosa faccia nel gap
+- sto mettendo i "print seriali" con l'ardu: da definire cosa passa poi in effetti
+- OVVIAMENTE, TOGLIERE I COUT E I GETCHAR DI DEBUG E GLI STAMPA IMMAGINI DI DEBUG!
