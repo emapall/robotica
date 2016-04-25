@@ -10,8 +10,10 @@
 #include<queue>
 #include<map>
 #include<math.h>
+#include<fstream>
 
-#define ii pair<int,int>
+//#define ii pair<int,int>
+#define coppia pair<int,int>
 
 using namespace cv;
 using namespace std;
@@ -22,6 +24,7 @@ int id_message;
 
 #include "seriale.h"
 #include "motors.h"
+//#include "servo.h"
 
 ///---------------------funzioni  e variabili di utils
 
@@ -29,17 +32,16 @@ Mat frame;
 Mat edges;
 Mat thr;
 Mat drawing;
-Mat lns=Mat::zeros( 240, 320, CV_8UC3 );
+Mat lns=Mat::zeros( 160, 120, CV_8UC3 );
 
 int erosion_elem = 0;
-int erosion_size = 5;
+int erosion_size = 2;
 int dilation_elem = 0;
 int dilation_size = 2;
 int const max_elem = 2;
 int const max_kernel_size = 21;
 
-void Erosion( int, void* )
-{
+void Erosion( int, void*, Mat& imm ){
   int erosion_type;
   if( erosion_elem == 0 ){ erosion_type = MORPH_RECT; }
   else if( erosion_elem == 1 ){ erosion_type = MORPH_CROSS; }
@@ -50,12 +52,11 @@ void Erosion( int, void* )
                                        Point( erosion_size, erosion_size ) );
 
   /// Apply the erosion operation
-  erode( thr, thr, element );
+  erode( imm, imm, element );
 }
 
 /** @function Dilation */
-void Dilation( int, void*, Mat& immagine )
-{
+void Dilation( int, void*, Mat& immagine ){
   int dilation_type;
   if( dilation_elem == 0 ){ dilation_type = MORPH_RECT; }
   else if( dilation_elem == 1 ){ dilation_type = MORPH_CROSS; }
@@ -68,8 +69,7 @@ void Dilation( int, void*, Mat& immagine )
   dilate( immagine, immagine, element );
 }
 
-void MyLine( Mat img, Point start, Point end )
-{
+void MyLine( Mat img, Point start, Point end ){
   int thickness = 2;
   int lineType = 8;
   line( img,
@@ -80,8 +80,7 @@ void MyLine( Mat img, Point start, Point end )
     lineType );
 }
 
-void MyFilledCircle( Mat img, Point center )
-{
+void MyFilledCircle( Mat img, Point center ){
  int thickness = -1;
  int lineType = 8;
 
@@ -93,8 +92,7 @@ void MyFilledCircle( Mat img, Point center )
          lineType );
 }
 
-void MyCenterCircle( Mat img, Point center )
-{
+void MyCenterCircle( Mat img, Point center ){
  int thickness = -1;
  int lineType = 8;
 
@@ -106,8 +104,7 @@ void MyCenterCircle( Mat img, Point center )
          lineType );
 }
 
-void DetectLine(int level)
-{
+void DetectLine(int level){
         //MyLine(frame,Point(20,460-dst*level),Point(620,460-dst*level));
         int a=0;
         int lastcoord;
@@ -152,16 +149,15 @@ int dist;
 };
 
 
-ii iimake(int a, int b)
+coppia iimake(int a, int b)
 {
-    return ii(make_pair(a, b));
+    return (make_pair(a, b));
 }
 
 int colorazione[3]={0,0,0};
 
 
-void calcola_colore(int dist)
-{
+void calcola_colore(int dist){
 
 int qualecolore = (dist/250)%3;
 int intensita=(dist%250);
@@ -181,15 +177,17 @@ int quanti_per_isola=0; ///QUANTI PER ISOLA: quanto è la distanza MASSIMA tra u
                         ///NON separati, cioè diciamo riunibili in uno stesso punto. Secondo la geometria, dovrebbe essere addirittura 1, non di più.
 
 ///VARIABILI PER LA FUNZIONE--------------
-map<ii, int> distanze; ///la matrice dove il pixel in pos(x,y) è a distanza d dal primo nero trovato
+map<coppia, int> distanze; ///la matrice dove il pixel in pos(x,y) è a distanza d dal primo nero trovato
 int distanza_max=-1;
 
 vector<int>vettore_x[10000];
-vector<int>vettore_y[10000];///100mila vuol dire che possiamo arrivare fino alla distanza di 100mila pixel (esagerato) (vedi NOTA)
+vector<int>vettore_y[10000];///10mila vuol dire che possiamo arrivare fino alla distanza di 10mila pixel (esagerato) (vedi NOTA)
 
 vector<int> hdng_isole;
+vector<int> hd_copia;
 int linea_x[10000];     ///i due vettori che si salvano la media delle coord dei punti della linea PRINCIPALE a distanza [i]
 int linea_y[10000];
+int last_errore=0;
 
 queue<Point> coda;
 const float angolo_visione_cam = 1.05;
@@ -198,6 +196,12 @@ Mat colore, grigio, copiacolore;
 
 #define DEBUG 0
 #define DEBUG2 10 ///è per le cose importanti, che aiutano a leggere
+
+bool compreso(int x, int a, int b){
+    if(a>b) swap(a,b);
+    if(a <= x && x<=b) return true;
+    return false;
+}
 
 int angolo_tra(float x1, float y1, float x2, float y2){ ///RITORNA L'ANGOLO 0-360 TRA DUE PUNTI
     swap(y1,y2);
@@ -250,8 +254,8 @@ int angolo_medio_linea(int lineax[], int lineay[], int lungh, int l, int step){
         #endif // DEBUG
 	return media;
 }
-///NOTA: MA SE È NERO È 0 O 255????
-pair<int,int> trova_primo_nero(int base /**,int metodo=?*/){
+
+coppia trova_primo_nero(int base /**,int metodo=?*/){
     /**
     !!IMPORTANTE: SE SI TIENE IL FOR DELLE I ALLORA SI FA CONTINUO, SE NON SI TIENE VIENE FUORI A SALTI!!!
     */
@@ -263,7 +267,7 @@ pair<int,int> trova_primo_nero(int base /**,int metodo=?*/){
     #if DEBUG
     assert(base >=0);
     #else
-    return pair<int,int>(-1,-1);
+    return make_pair(-1,-1);
     #endif // DEBUG
     int i = base;
     //for(int i=base; i>=0; i--)  ///i:righe
@@ -292,8 +296,8 @@ pair<int,int> trova_primo_nero(int base /**,int metodo=?*/){
         }
     primox=(primox+lastx)/2;
     //}
-    if(!trovato) return pair<int,int>(-1,-1);
-    return pair<int,int>(primox,primoy);
+    if(!trovato) return make_pair(-1,-1);
+    return make_pair(primox,primoy);
 }
 
 bool bfs_principaple(Mat& grigio, bool inizio, int primox=-2, int primoy=-2){ ///COLORA "colore" e riempie la matrice DISTANZE
@@ -337,136 +341,147 @@ bool bfs_principaple(Mat& grigio, bool inizio, int primox=-2, int primoy=-2){ //
 
     ///--------------------<<BFS>>---------------///
 
-coda.push(Point(primox, primoy));
-distanze[iimake(primox,primoy)]=0;
+    ///SETPAN
+    /*
+    cout << "PRIMO_X → " << primox << endl;
+    if(primox>grigio.cols*2/3)
+        setPan(80);
+    else if(primox<grigio.cols/3)
+        setPan(100);
+    else if(primox < grigio.cols *2/3 -10 && primox > grigio.cols/3 +10);
+        setPan(90);
+    */
+    coda.push(Point(primox, primoy));
+    distanze[iimake(primox,primoy)]=0;
 
-int xcorrente, ycorrente,xprossimo,yprossimo, distcorr;
+    int xcorrente, ycorrente,xprossimo,yprossimo, distcorr;
 
-while(!coda.empty())
-{
-    Point corrente = coda.front();
-    coda.pop();
-    xcorrente=corrente.x;
-    ycorrente=corrente.y;
-    distcorr= distanze[iimake(xcorrente,ycorrente)];
+    while(!coda.empty())
+    {
+        Point corrente = coda.front();
+        coda.pop();
+        xcorrente=corrente.x;
+        ycorrente=corrente.y;
+        distcorr= distanze[iimake(xcorrente,ycorrente)];
 
-    if(distcorr> distanza_max)
-        distanza_max=distcorr;
-    vettore_x[distcorr].push_back(xcorrente);
-    vettore_y[distcorr].push_back(ycorrente);
+        if(distcorr> distanza_max)
+            distanza_max=distcorr;
+        vettore_x[distcorr].push_back(xcorrente);
+        vettore_y[distcorr].push_back(ycorrente);
 
-                #if DEBUG2
-                calcola_colore(distcorr);  ///colora il punto sulla immagine
-                colore.at<Vec3b>(ycorrente,xcorrente) = (Vec3b){colorazione[0],colorazione[1],colorazione[2]};
-                #endif // DEBUG2
+                    #if DEBUG2
+                    //calcola_colore(distcorr);  ///colora il punto sulla immagine
+                    //colore.at<Vec3b>(ycorrente,xcorrente) = (Vec3b){colorazione[0],colorazione[1],colorazione[2]};
+                    #endif // DEBUG2
 
-    for(int i=-1; i<=1; i++)
-        for(int j=-1; j<=1; j++)   ///PER OGNI VICINO DEL PIXEL CORRENTE CONTROLLA SE LO DEVI PRENDERE
-        {
-            xprossimo = xcorrente+i;
-            yprossimo = ycorrente+j;
-
-            if((xprossimo>=0 && xprossimo<grigio.cols) &&
-                (yprossimo>=0 && yprossimo<grigio.rows)  ///SE È DENTRO I CONFINI DELLA MATRICE,
-                &&
-                (distanze.count(iimake(xprossimo,yprossimo)) == 0 )&& ///BFS:SE NON LO HAI GIA PRESO IN CONSIDERAZIONE,
-                ( (int)grigio.at<uchar>(yprossimo,xprossimo) <= soglianero) ///SE È UN NERO,
-                )
+        for(int i=-1; i<=1; i++)
+            for(int j=-1; j<=1; j++)   ///PER OGNI VICINO DEL PIXEL CORRENTE CONTROLLA SE LO DEVI PRENDERE
             {
-                coda.push(Point(xprossimo,yprossimo));    ///metti il prossimo nodo nella coda
-                distanze[iimake(xprossimo,yprossimo)] =  distcorr+1; ///setta la distanza del prossimo a la tua +1
-             } //endif
-        } //endfor
+                xprossimo = xcorrente+i;
+                yprossimo = ycorrente+j;
+
+                if  ((xprossimo>=0 && xprossimo<grigio.cols)
+                    &&
+                    (yprossimo>=0 && yprossimo<grigio.rows)  ///SE È DENTRO I CONFINI DELLA MATRICE,
+                    &&
+                    (distanze.count(iimake(xprossimo,yprossimo)) == 0 ) ///BFS:SE NON LO HAI GIA PRESO IN CONSIDERAZIONE,
+                    &&
+                    ( (int)grigio.at<uchar>(yprossimo,xprossimo) <= soglianero)) ///SE È UN NERO,
+                    {
+                        coda.push(Point(xprossimo,yprossimo));    ///metti il prossimo nodo nella coda
+                        distanze[iimake(xprossimo,yprossimo)] =  distcorr+1; ///setta la distanza del prossimo a la tua +1
+                    } //endif
+            } //endfor
 
 
-}//endwhile; fine bfs
-return true;
+    }//endwhile; fine bfs
+    return true;
 }
 
 void tratta_linea_principale(){
     ///--<<CALCOLO DELLA MEDIA, PER VEDERE DOVE VA LA TRAIETTORIA DELLA LINEA>>----
-int mediax;
-int mediay;
-for(int i=0; i<=fino_a_dove; i++)
-{
-    mediax=0;
-    mediay=0;
-    for(int j=0; j<vettore_x[i].size(); j++)
+    int mediax;
+    int mediay;
+    for(int i=0; i<=fino_a_dove; i++)
     {
-        mediax=mediax+vettore_x[i][j];
-        mediay=mediay+vettore_y[i][j];
-    }
-    ///NOTA: LA DIVISIONE INTERA CI PIACE PERCHÈ MAINLY ESSENDO COORDINATE CE NE SBATTIAMO IL CAZZ!
-    #if DEBUG2
-        if(vettore_x[i].size()==0 || vettore_y[i].size()==0)
-            cout<<"DIVISIONE PER ZEROH!!!!!\n";
-    #endif // DEBUG2
-    mediax=mediax /vettore_x[i].size();
-    //mediax=(int)mediax;
-    mediay=mediay /vettore_y[i].size();
-    //mediay=mediay;
+        mediax=0;
+        mediay=0;
+        for(int j=0; j<vettore_x[i].size(); j++)
+        {
+            mediax=mediax+vettore_x[i][j];
+            mediay=mediay+vettore_y[i][j];
+        }
+        ///NOTA: LA DIVISIONE INTERA CI PIACE PERCHÈ MAINLY ESSENDO COORDINATE CE NE SBATTIAMO IL CAZZ!
+        #if DEBUG2
+            if(vettore_x[i].size()==0 || vettore_y[i].size()==0)
+                cout<<"DIVISIONE PER ZEROH!!!!!\n";
+        #endif // DEBUG2
+        mediax=mediax /vettore_x[i].size();
+        //mediax=(int)mediax;
+        mediay=mediay /vettore_y[i].size();
+        //mediay=mediay;
 
-    linea_x[i]=(int)mediax;
-    linea_y[i]=(int)mediay;
-    #if DEBUG2
-    colore.at<Vec3b>(linea_y[i],linea_x[i])=(Vec3b){250,250,250};
-    #endif // DEBUG2
-}
-}
+        linea_x[i]=(int)mediax;
+        linea_y[i]=(int)mediay;
+        #if DEBUG2
+        colore.at<Vec3b>(linea_y[i],linea_x[i])=(Vec3b){250,250,250};
+        #endif // DEBUG2
+    }
+    }
 
 int bfs_isole(Mat& grigio,int distanza_isole_funz){
-    ///----LA CONTROBFS PER VEDERE QUANTE sono le isole
-map<ii, bool> usati;
+        ///----LA CONTROBFS PER VEDERE QUANTE sono le isole
+    map<pair<int, int>, bool> usati;
 
-int numero_isole=0;
-for(int i=0; i<vettore_x[distanza_isole_funz].size(); i++)
-    if(usati.count(iimake(vettore_x[distanza_isole_funz][i],vettore_y[distanza_isole_funz][i]))==0)
-    {
-        numero_isole++;
-        usati[iimake(vettore_x[distanza_isole_funz][i],vettore_y[distanza_isole_funz][i])]=true;
-        coda.push(Point(vettore_x[distanza_isole_funz][i],vettore_y[distanza_isole_funz][i]));
-
-        while(!coda.empty()) ///NOTA, ERA VERAMENTE UN CESSO DA IMPLEMENTARE IL FATTO DELLA DISTANZA MINIMA TRA I PIXEL ISOLA, COSÌ LASCIAI PERDERE
+    int numero_isole=0;
+    for(int i=0; i<vettore_x[distanza_isole_funz].size(); i++)
+        if(usati.count(iimake(vettore_x[distanza_isole_funz][i],vettore_y[distanza_isole_funz][i]))==0)
         {
+            numero_isole++;
+            usati[iimake(vettore_x[distanza_isole_funz][i],vettore_y[distanza_isole_funz][i])]=true;
+            coda.push(Point(vettore_x[distanza_isole_funz][i],vettore_y[distanza_isole_funz][i]));
 
-            Point corrente = coda.front();
-            coda.pop();
-            int xcorrente=corrente.x;
-            int ycorrente=corrente.y;
+            while(!coda.empty()) ///NOTA, ERA VERAMENTE UN CESSO DA IMPLEMENTARE IL FATTO DELLA DISTANZA MINIMA TRA I PIXEL ISOLA, COSÌ LASCIAI PERDERE
+            {
 
-            for(int i=-1; i<=1; i++)
-                for(int j=-1; j<=1; j++)   ///PER OGNI VICINO DEL PIXEL CORRENTE CONTROLLA SE LO DEVI PRENDERE
-                {
-                    int xprossimo = xcorrente+i;
-                    int yprossimo = ycorrente+j;
-                    ii  proxnodo=iimake(xprossimo,yprossimo);
-                    if((xprossimo>=0 && xprossimo<grigio.cols) && (yprossimo>=0 && yprossimo<grigio.rows)  ///SE È DENTRO I CONFINI DELLA MATRICE,
-                        &&
-                        (usati.count(proxnodo) == 0 )&&  (abs(distanze[proxnodo]-distanza_isole_funz) <=quanti_per_isola) && ///BFS:SE NON LO HAI GIA PRESO IN CONSIDERAZIONE,
-                        ( (int)grigio.at<uchar>(yprossimo,xprossimo) <= soglianero) ///SE È UN NERO,
-                        )
+                Point corrente = coda.front();
+                coda.pop();
+                int xcorrente=corrente.x;
+                int ycorrente=corrente.y;
 
+                for(int i=-1; i<=1; i++)
+                    for(int j=-1; j<=1; j++)   ///PER OGNI VICINO DEL PIXEL CORRENTE CONTROLLA SE LO DEVI PRENDERE
                     {
-                        usati[proxnodo]=true;
-                        coda.push(Point(xprossimo,yprossimo));
-                        #if DEBUG2
-                        colore.at<Vec3b>(yprossimo,xprossimo) = (Vec3b){250,250,0};
-                        #endif // DEBUG2
+                        int xprossimo = xcorrente+i;
+                        int yprossimo = ycorrente+j;
+                        coppia  proxnodo=iimake(xprossimo,yprossimo);
+                        if((xprossimo>=0 && xprossimo<grigio.cols) && (yprossimo>=0 && yprossimo<grigio.rows)  ///SE È DENTRO I CONFINI DELLA MATRICE,
+                            &&
+                            (usati.count(proxnodo) == 0 )&&  (abs(distanze[proxnodo]-distanza_isole_funz) <=quanti_per_isola) && ///BFS:SE NON LO HAI GIA PRESO IN CONSIDERAZIONE,
+                            ( (int)grigio.at<uchar>(yprossimo,xprossimo) <= soglianero) ///SE È UN NERO,
+                            )
 
+                        {
+                            usati[proxnodo]=true;
+                            coda.push(Point(xprossimo,yprossimo));
+                            #if DEBUG2
+                            colore.at<Vec3b>(yprossimo,xprossimo) = (Vec3b){250,250,0};
+                            #endif // DEBUG2
+
+                        }
                     }
-                }
-        }//endwhile
+            }//endwhile
 
-}
+    }
 
-return numero_isole;
+    return numero_isole;
 }//endfunction
 
-void heading_isole(Mat& grigio){
-    map<ii, bool> usati;
+void heading_isole(Mat& grigio){  ///PROBLEMA → COSA FA QUESTA FUNZIONE !?! COSA SONO GLI HEADING DELLE ISOLE? (ballerin)
+    map<coppia, bool> usati;
     Point corrente;
     int xprossimo,yprossimo;
-    ii proxnodo, nodocorr;
+    coppia proxnodo, nodocorr;
     int mediax[2000], mediay[2000];
     int quantix[2000], quantiy[2000]; //non mettiamo i vector del cazzo, sono lenti
 
@@ -534,7 +549,7 @@ void heading_isole(Mat& grigio){
         //cout<<"no crash 2\n";//getchar();
         cout<<"max dist isola "<<max_dist_isola -distanza_isole<<endl;
         if(max_dist_isola -distanza_isole>= 30)
-        hdng_isole.push_back(angolo_medio_linea(mediax,mediay,max_dist_isola-15-distanza_isole, 10,10));
+        hdng_isole.push_back(angolo_medio_linea(mediax,mediay,max_dist_isola-5-distanza_isole, max_dist_isola-5-distanza_isole-1,max_dist_isola-5-distanza_isole+4));
         else
         hdng_isole.push_back(-5);
 
@@ -577,10 +592,11 @@ void calibraVerde(Mat& imm){
             minr=max(minr,(int)red);
         }
 
-    cout<<"        i minimi di g, r, b sono"<<maxgreen<<"\n"<<minb<<"\n"<<minr<<"\n";getchar();
+    cout<<"        i minimi di g, r, b sono"<<maxgreen<<"\n"<<minb<<"\n"<<minr<<"\n";//getchar();
 }
 
 Mat tresholda_verde(Mat& imm, int bval, int gval, int rval){
+    /*
     Mat tbin(imm.rows, imm.cols, CV_8UC1,Scalar(0));
     int mingreen = 0, maxr=400, maxb=500;
 
@@ -599,6 +615,17 @@ Mat tresholda_verde(Mat& imm, int bval, int gval, int rval){
         }
 
         return tbin;
+        */
+
+  	// Convert input image to HSV
+  	Mat hsv_image;
+    cvtColor(imm, hsv_image, cv::COLOR_BGR2HSV);
+
+  	// Threshold the HSV image, keep only the greenh pixels
+  	Mat gr_range;
+  	inRange(hsv_image, cv::Scalar(38, 100, 100), cv::Scalar(75, 255, 255), gr_range);
+ 	//inRange(hsv_image, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), upper_red_hue_range);
+ 	return gr_range;
 }
 
 Point trova_verde(){
@@ -611,7 +638,8 @@ Dilation(0,0,matVerdi);
 Dilation(0,0,matVerdi);
 Dilation(0,0,matVerdi);
 Dilation(0,0,matVerdi);
-  imwrite("biancoverde.png", matVerdi);getchar();
+  //imwrite("biancoverde.png", matVerdi);getchar();
+  //imshow("Colore",matVerdi);
 
 
 SimpleBlobDetector::Params params;
@@ -659,21 +687,25 @@ char tratta_verde_linea(Point2i verde, Point2i lin){
         cout<<"     angolo verde : "<<angolo<<endl;
         #endif // DEBUG2
 
-    if((240>angolo) && (angolo >120))
+    ///COME SI MISURANO GLI ANGOLI DEL VERDE? (ballerin)
+
+
+    if((260>angolo) && (angolo >100))
         return ('s');
-    if((angolo < 60)|| (angolo > 300))
+    if((angolo < 80)|| (angolo > 280))
         return ('d');
 
     return('e');
+
 
 }
 
 float calcola_errore(int hdLinea, int xIn, int yIn=-2, int xFin = -2, int yFin = -2){
     float errore = 0;
     ///PONIAMO CHE SIA NEGATIVO IL ROBOT GIRA A SX, POSITIVO A DX
-    float k_angolo = 1.0, k_posLinea=2.0;
+    float k_angolo = 2.5, k_posLinea=2.0;
         #if DEBUG
-        //cout<<"         per la hd : "<<(90-hdLinea)<<endl<<"per la pos : "<<(xIn - (grigio.cols/2))<<endl;
+        //cout<<"        per la hd : "<<(90-hdLinea)<<endl<<"per la pos : "<<(xIn - (grigio.cols/2))<<endl;
         //cout<<"         x iniziale "<<xIn<<" le colonne sono "<<grigio.cols<<endl;
         #endif // DEBUG
     errore += (90-hdLinea) * k_angolo;
@@ -702,14 +734,14 @@ Point2f trovaPalla(Mat& imm, Ptr<SimpleBlobDetector> palleDetector){
     Dilation(0,0,imm);
     Dilation(0,0,imm);
 
-    imshow("cacca",imm);
+    //imshow("cacca",imm);
     //waitKey(0);
 
     palleDetector->detect( imm, palleKeypoints);
             #if DEBUG2
             cout<<"ne ho trovati "<<palleKeypoints.size()<<endl;
             drawKeypoints( imm, palleKeypoints, imm2, Scalar(0,250,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
-            imshow("cosa_trovato",imm2);
+            //imshow("cosa_trovato",imm2);
             for(int i=0; i<palleKeypoints.size(); i++){
                 cout<<"HO TROVATO  QUALCOSA a: x"<<(int)palleKeypoints[i].pt.x<<" y "<<(int)palleKeypoints[i].pt.y<<endl;
                 //waitKey(0);
@@ -751,7 +783,7 @@ for(;;){
     for(int contrl=0;contrl<5;contrl++)
         cap >> imm; // get a new frame from camera
         // Setup SimpleBlobDetector parameters.
-    imshow("roba",imm);
+    //imshow("roba",imm);
     //waitKey(0);
     Point2f palla = trovaPalla(imm,palleDetector);
     if(palla.x != -1){
@@ -763,37 +795,125 @@ for(;;){
 }
 return;
 }
+
+
+int check_curva_nov(){ ///SERVE A VERIFICARE SE VIENE TROVATA UNA CURVA A NOVANTA
+    int curva_nov_dest=1;
+    int curva_nov_sinis=1;
+    for(int i=100; i<=140; i++){
+        if ((int)grigio.at<uchar>(60,i) >soglianero && (int)grigio.at<uchar>(65,i) >soglianero && (int)grigio.at<uchar>(55,i) >soglianero){
+            curva_nov_dest=0;
+            break;
+        }
+    }
+    for(int i=20; i<=80; i++){
+        if ((int)grigio.at<uchar>(60,i) >soglianero && (int)grigio.at<uchar>(65,i) >soglianero && (int)grigio.at<uchar>(55,i) >soglianero){
+            curva_nov_sinis=0;
+            break;
+        }
+    }
+    if(curva_nov_dest & curva_nov_sinis)
+        return 3;
+    else if(curva_nov_dest)
+        return 1;
+    else if(curva_nov_sinis)
+        return 2;
+    else
+        return 0;
+}
+
+void curva90(char dir, int quanto = 20){
+
+    if(dir=='d'){ ///CURVA A DESTRA
+                for(int i=0;i<quanto;i++){
+                    setSpeeds(30,30);
+                    usleep(100000);
+                }
+                for(int i=0;i<20;i++){
+                    setSpeeds(50,-50);
+                    usleep(100000);
+                }
+                for(int i=0;i<5;i++){
+                    setSpeeds(-30,-30);
+                    usleep(150000);
+                }
+            }
+            else if(dir=='s'){ ///CURVA A SINISTRA
+                for(int i=0;i<20;i++){
+                    setSpeeds(30,30);
+                    usleep(100000);
+                }
+                for(int i=0;i<20;i++){
+                    setSpeeds(-50,50);
+                    usleep(100000);
+                }
+                for(int i=0;i<5;i++){
+                    setSpeeds(-30,-30);
+                    usleep(150000);
+                }
+            }
+}
+
 #define SINGLEFRAME 1
 
+float errore_pan=1;
+int errore_vero=-1;
 
 int main(int argc, char** argv )
 {
+
+
+    #if GRAPHICAL
+        namedWindow("Line",1);
+        amedWindow("Original",1);
+        //namedWindow("Elab",1);
+    #endif
+    VideoWriter video("video.avi",CV_FOURCC('M','J','P','G'),1,Size(160,120));
+
     fd = Serial_start();
-    namedWindow("immagine2.png",WINDOW_AUTOSIZE);
+    attach("pan");
+    attach("tilt");
+    setTilt(20);
+    //namedWindow("immagine2.png",WINDOW_AUTOSIZE);
     #if SINGLEFRAME
     VideoCapture cap(0); // open the default camera
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 120);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 160);
-    namedWindow("colore",WINDOW_FULLSCREEN);
-    for(;;)
-    {
-    #else
-    frame=imread(argv[1], CV_LOAD_IMAGE_COLOR);
-    if ( !frame.data )
-    {
-        printf("No image data \n");
-        return -1;
-    }
-    #endif // SINGLEFRAME
-    #if SINGLEFRAME
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, 160);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 120);
+    #if GRAPHICAL
+        namedWindow("colore",WINDOW_FULLSCREEN);
+    #endif
+
+    ifstream input("/sys/class/gpio/gpio4/value");
+    int n;
+
+    /// QUI INIZIA IL LOOP
+    for(;;){
+        ///QUI CONTROLLO SE POSSO ANDARE AVANTI O SONO STATO RESETTATO DA PULSANTE
+        input.clear();
+		input.seekg(0);
+		input >> n;
+		if(n==1){
+            return 0;
+		}
+        #else
+        frame=imread(argv[1], CV_LOAD_IMAGE_COLOR);
+        if ( !frame.data )
+        {
+            printf("No image data \n");
+            return -1;
+        }
+        #endif // SINGLEFRAME
+
+        #if SINGLEFRAME
         for(int contrl=0;contrl<10;contrl++){
         cap >> frame; // get a new frame from camera
-        lns=Mat::zeros( 120, 160, CV_8UC3 );
-
+        lns=Mat::zeros( 160, 120, CV_8UC3 );
         }
+        cout<<"Stampa"<<endl;
+
     #endif // SINGLEFRAME
 
         frame.copyTo(copiacolore);
@@ -801,12 +921,17 @@ int main(int argc, char** argv )
         threshold(edges,thr, 70, 255, THRESH_BINARY);
         grigio=thr;
         cvtColor(grigio,colore, CV_GRAY2BGR);
+        #if GRAPHICAL
+            imshow("Original",frame);
+            imshow("Line",thr);
+            waitKey(30);
+        #endif
 		///erosion
         //TROVALINEA!
-        //INIZIALIZZAZIONE
+                //INIZIALIZZAZIONE
 
 				distanze.clear();
-				distanza_max=0;
+				hd_copia.clear();
 				hdng_isole.clear();
 				while(!coda.empty())
 					coda.pop();
@@ -820,31 +945,40 @@ int main(int argc, char** argv )
 				//vett_quanti[i]=0;
 				}
 				cvtColor(grigio,colore, CV_GRAY2BGR);
-				distanze.clear();
 
 				bool gap = false;
 				bool trovato_isole=false;
 				bool trovato_verde=false;
 				bool incrocio_t = false;
+				bool trovato_linea=false;
+				bool linea_corta=false;
+				bool isole_corta = false;
 				int direzione_principale;
+				int quante_isole=0;
+                int errore=0;
+                char dove = 'z';
+				Point verde;
+				distanza_max=0;
 
         //FINZE INIZIALIZZAZIONE---------------
             #if DEBUG2
             cout<<"robe principali\n";
             imwrite("immagine2.png", colore);
             #endif // DEBUG2
+        Erosion(0,0,grigio);
         Dilation(0,0,grigio);
-        bool trovato_linea = bfs_principaple(grigio,true);
+        Dilation(0,0,grigio);
+        trovato_linea = bfs_principaple(grigio,true);
         if(!trovato_linea){
             cout<<"\n----------SERIALE ALL ARDU: TUTTO BIANCO------------\n"<<endl;
             //goto fineframe;
         }
 
         fino_a_dove=distanza_max-1;
-        if(distanza_max<30)
+        if(distanza_max<20)
         {
             cout<<"-----SERIALE: TROPPO CORTA LINEA"; ///VAI AVANTI UN POCHETTO E RIFALLO?
-            trovato_linea = false;
+            linea_corta = true;
             //goto fineframe;
         }
             #if DEBUG2
@@ -855,113 +989,350 @@ int main(int argc, char** argv )
             #endif // DEBUG2
         //GAP
 
-            if(trovato_linea){
-            cout<<"ricerca gap\n";
-            if(condizione_di_gap(vettore_x[distanza_max-3][0],vettore_y[distanza_max-3][0])){
-                gap=true;
-                cout<<"\n----------SERIALE ALL ARDU: GAP------------\n"<<endl;
-                    #if DEBUG2
-                    cout<<"GAP \n"<<vettore_x[distanza_max-3][0]<<" "<<vettore_y[distanza_max-3][0]<<endl;
-                    colore.at<Vec3b>(vettore_y[distanza_max-3][0],vettore_x[distanza_max-3][0]) = (Vec3b){	0, 102, 255};
-                    #endif // DEBUG2
-                int base=vettore_y[distanza_max-3][0];
-                //METODO IGNORANTE!!!!!
-                base-=20;
-                pair<int,int> risultato=trova_primo_nero(base);
-                //while(risultato.second == 50 && base >= 50){ ///non serve : quanti gap ci possono essere in una sola immagine se non 2?????
-                while(base >=0  && risultato.first==-1){
-                    base-=10;
-                    risultato=trova_primo_nero(base);
-                }
-                bfs_principaple(grigio,false,risultato.first,risultato.second);
-                //goto fineframe;
-            }
 
+            if(trovato_linea){
+                    #if DEBUG2
+                    cout<<"ricerca gap\n";
+                    #endif // DEBUG2
+                if(distanza_max>=5)
+                if(condizione_di_gap(vettore_x[distanza_max-3][0],vettore_y[distanza_max-3][0])){
+                    gap=true;
+                    cout<<"\n----------SERIALE ALL ARDU: GAP------------\n"<<endl;
+                        #if DEBUG2
+                        cout<<"GAP \n"<<vettore_x[distanza_max-3][0]<<" "<<vettore_y[distanza_max-3][0]<<endl;
+                        colore.at<Vec3b>(vettore_y[distanza_max-3][0],vettore_x[distanza_max-3][0]) = (Vec3b){	0, 102, 255};
+                        #endif // DEBUG2
+                    int base=vettore_y[distanza_max-3][0];
+                    //METODO IGNORANTE!!!!!
+                    base-=20;
+                    pair<int,int> risultato=trova_primo_nero(base);
+                    //while(risultato.second == 50 && base >= 50){ ///non serve : quanti gap ci possono essere in una sola immagine se non 2?????
+                    while(base >=0  && risultato.first==-1){
+                        base-=10;
+                        risultato=trova_primo_nero(base);
+                    }
+                    bfs_principaple(grigio,false,risultato.first,risultato.second);
+                    //goto fineframe;
+            }
 		//RICERCA ISOLE SUL PERCOROSO
+                #if DEBUG2
+                cout<<"ricerca isole + verde\n";
+                #endif // DEBUG2
+
+                    if(!linea_corta)
+                    for(int dove=2; dove<fino_a_dove; dove+=50){
+                        if(bfs_isole(grigio,dove)>=2){
+                            fino_a_dove=dove;
+                            trovato_isole=true;
+                            break;
+                         }
+                    }
+                    if(trovato_isole){
+                    int ub=fino_a_dove;
+                    int lb=2;
+                    int mid=(ub+lb)/2;
+
+                    while(ub>lb+1){
+                        mid=(ub+lb)/2;
+                        if(bfs_isole(grigio,mid)==1)
+                            lb=mid;
+                        else
+                            ub=mid;
+                    }
+                        if(distanza_max - ub >=30)  ///se hai un po di spazio allarga pure, perchè sennò stai stretto;
+                            distanza_isole=ub+10;
+                        else
+                            distanza_isole=ub;
+
+                        fino_a_dove=distanza_isole;
+                        quante_isole=bfs_isole(grigio,distanza_isole);
+                        if(fino_a_dove <= 30){ ///ASPETTIAMO L'HEADING PER DIRE SE SI TRATTA DI UN INCROCIO A T, DIRITTO O A 4
+                            linea_corta=true;
+
+                        }
+                        cout<<"\n----------SERIALE ALL ARDU: TROVATE ISOLE------------\n"<<endl;
+                            #if DEBUG2
+                            imwrite("immagine2.png", colore);
+                            getchar();
+                            cout<<"le isole le trovo a distanza : "<<distanza_isole<<endl;
+                            cout<<"ci sono: "<<quante_isole<<"isole\n";
+                            cout<<"INIZIO CALCOLO HEADING ISOLE\n";
+                            #endif // DEBUG2
+
+                    heading_isole(grigio);
+                    /*FAI COSE PER DETERMINARE IL TIPO DI INCROCIO*/
+                    #if DEBUG2
+                    assert(hdng_isole.size()==quante_isole);
+                    #endif // DEBUG2
+
+                    for(int i=0; i<quante_isole; i++)
+                    {
+                        if(hdng_isole[i]==-5)
+                            isole_corta=true;
+                    }
+
+                    }///endif trovato_isole
+		//FINE RICERCA ISOLE SUL PERCORSO
+            //CALCOLO CORREZIONI ROBOT UNA VOLTA TRATTATA LA LINEA PRINCIPALE
             #if DEBUG2
-            cout<<"ricerca isole + verde\n";
+            cout<<"tratto linea principale \n";
+            #endif // DEBUG2
+            if(!linea_corta)
+            {
+                tratta_linea_principale();
+                direzione_principale = angolo_medio_linea(linea_x,linea_y,fino_a_dove, 10,3);
+                errore =calcola_errore(direzione_principale,linea_x[2]);
+                last_errore=errore;
+            }
+            else
+                incrocio_t = true;
+
+            #if DEBUG2
+            cout<<"angolo linea principale: "<<direzione_principale<<endl;
+            //cout<<"\nl'errore e' "<<calcola_errore(direzione_principale,linea_x[2]);
             #endif // DEBUG2
 
-                Point verde = trova_verde();
+            ///setSpeeds(30+(errore)/5,30-(errore)/5);
+            cout<<"ERRORE: "<<errore<<endl;
+
+            //verde
+            if(trovato_isole){
+                verde = trova_verde();
                 if(verde.x != -1)
                     trovato_verde=true;
-
-				for(int dove=2; dove<fino_a_dove; dove+=50){
-					if(bfs_isole(grigio,dove)>=2){
-						fino_a_dove=dove;
-						trovato_isole=true;
-						break;
-					 }
-				}
-				if(trovato_isole){
-				int ub=fino_a_dove;
-				int lb=2;
-				int mid=(ub+lb)/2;
-
-				while(ub>lb+1){
-					mid=(ub+lb)/2;
-					if(bfs_isole(grigio,mid)==1)
-						lb=mid;
-					else
-						ub=mid;
-				}
-                    if(distanza_max - ub >=30)  ///se hai un po di spazio allarga pure, perchè sennò stai stretto;
-                        distanza_isole=ub+10;
-					else
-                        distanza_isole=ub;
-
-                    fino_a_dove=ub-1;
-
-                    cout<<"\n----------SERIALE ALL ARDU: TROVATE ISOLE------------\n"<<endl;
-                        #if DEBUG2
-                        imwrite("immagine2.png", colore);
-                        getchar();
-                        cout<<"le isole le trovo a distanza : "<<distanza_isole<<endl;
-                        cout<<"ci sono: "<<bfs_isole(grigio,distanza_isole)<<"isole\n";
-                        cout<<"INIZIO CALCOLO HEADING ISOLE\n";
-                        #endif // DEBUG2
-
-                heading_isole(grigio);
-
-                }///endif trovato_isole
-		//FINE RICERCA ISOLE SUL PERCORSO
-		//CALCOLO CORREZIONI ROBOT UNA VOLTA TRATTATA LA LINEA PRINCIPALE
-        #if DEBUG2
-		cout<<"tratto linea principale \n";
-		#endif // DEBUG2
-		if(fino_a_dove > 30)
-		{
-            tratta_linea_principale();
-            direzione_principale = angolo_medio_linea(linea_x,linea_y,fino_a_dove, 10,3);
-        }
-        else
-            incrocio_t = true;
-        #if DEBUG2
-        cout<<"angolo linea principale: "<<direzione_principale<<endl;
-        //cout<<"\nl'errore e' "<<calcola_errore(direzione_principale,linea_x[2]);
-        #endif // DEBUG2
-        int errore =calcola_errore(direzione_principale,linea_x[2]);
-        setSpeeds(30+(errore)/5,30-(errore)/5);
-        cout<<"ERRORE: "<<errore<<endl;
-
-        //verde
-        if(fino_a_dove > 30)
-            if(trovato_verde){
-                char dove=tratta_verde_linea(Point2i((int)verde.x, (int)verde.y), Point2i(linea_x[distanza_isole-5],linea_y[distanza_isole-5]));
-                #if DEBUG2
-                cout<<"IL VERDE EVENTUALMENTE TROVATO SI TROVA A "<<dove<<endl;
-                #endif // DEBUG2
             }
 
-        //cout<<"\n----------SERIALE ALL ARDU: linea normale------------\n"<<endl;
+            if(trovato_verde){
+                dove=tratta_verde_linea(Point2i((int)verde.x, (int)verde.y), Point2i(linea_x[distanza_isole-5],linea_y[distanza_isole-5]));
+                #if DEBUG2
+                cout<<"verde x e y"<<verde.x<<" "<<verde.y<<"    "<<linea_x[distanza_isole-5]<<"   "<<linea_y[distanza_isole-5]<<endl;
+                cout<<"IL VERDE EVENTUALMENTE TROVATO SI TROVA A "<<dove<<endl;
+                #endif // DEBUG2
+                }
+
+            //cout<<"\n----------SERIALE ALL ARDU: linea normale------------\n"<<endl;
         } ///ENDIF TROVATO LINEA
+
+        /**int curva_nov=check_curva_nov(); ///1 a destra, 2 a sinistra, 3 incrocio, 0 non ho trovato nulla
+        //cout << grigio.rows << endl;
+        if(curva_nov>0){    ///SE C'È QUALCOSA DA FARE PER VIA DI INCROCI/CURVE POTENTI
+            if(curva_nov==1){ ///CURVA A DESTRA
+                for(int i=0;i<20;i++){
+                    setSpeeds(30,30);
+                    usleep(100000);
+                }
+                for(int i=0;i<20;i++){
+                    setSpeeds(50,-50);
+                    usleep(100000);
+                }
+                for(int i=0;i<5;i++){
+                    setSpeeds(-30,-30);
+                    usleep(100000);
+                }
+            }
+            else if(curva_nov==2){ ///CURVA A SINISTRA
+                for(int i=0;i<20;i++){
+                    setSpeeds(30,30);
+                    usleep(100000);
+                }
+                for(int i=0;i<20;i++){
+                    setSpeeds(-50,50);
+                    usleep(100000);
+                }
+                for(int i=0;i<5;i++){
+                    setSpeeds(-30,-30);
+                    usleep(100000);
+                }
+            }
+            else if(curva_nov==3){ ///INCROCIO, VAI DRITTO PER EVITARE ERRORI
+                for(int i=0;i<20;i++){
+                    setSpeeds(30,30);
+                    usleep(100000);
+                }
+            }
+        }
+        else{
+            if(direzione_principale<=30){
+                errore_pan=1.4;
+                setPan(70);
+            }
+            else if(direzione_principale<=45 && direzione_principale>35){
+                errore_pan=1.2;
+                setPan(80);
+            }
+            else if(direzione_principale>=150){
+                errore_pan=1.4;
+                setPan(100);
+            }
+            else if(direzione_principale>=135 && direzione_principale<125){
+                errore_pan=1.2;
+                setPan(120);
+            }
+            else if(direzione_principale>70){
+                errore_pan=0.8;
+                setPan(90);
+            }
+
+
+            if(errore_vero==-1){
+                errore_vero=errore;
+            }
+            else{
+                errore_vero=(errore_vero+errore*2)/3;
+            }
+
+
+            setSpeeds(30+((errore_vero)/3*errore_pan),30-((errore_vero)/3)*errore_pan);
+            cout<<"ERRORE: "<<errore << " → " << errore_vero <<endl;
+        }*/
+
+
+         ///PARTE DECISIONALE OPERATIVA: CHE CAZZO FACCIO?
+        #if DEBUGOP
+        {
+            cout<<"TROVATO LINEA?"<<trovato_linea<<endl;
+            cout<<"LINEA CORTA?"<<linea_corta<<endl;
+            cout<<"ISOLE?"<<trovato_isole<<" quante  "<<quante_isole<<" ce ne sono corte ? "<<isole_corta<<endl;
+            for(int i=0; i<hdng_isole.size(); i++)
+            {
+                cout<<"hdng isola "<<i<<" "<<hdng_isole[i]<<endl;
+            }
+            cout<<"verde? "<<trovato_verde<<endl;
+            imwrite("immagine2.png", colore);
+        }
+        #endif // DEBUGOP
+
+
+        if(!trovato_linea || gap){
+            setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+            last_errore=last_errore/2;
+            //FINISCI!
+        }
+        if(gap) ; ///FAI COSE, ANCORA DA DEFINIRE!!
+        ///SE HAI TROVATO ISOLE STRANE MA UNA LINEA DECENTE, FREGACAZZI E SEGUI QUELLA
+        if(trovato_isole && isole_corta && !linea_corta) trovato_isole = false;
+
+
+        if(trovato_isole){
+                int h1,h2,h3;
+                sort(hdng_isole.begin(), hdng_isole.end());
+                hd_copia=hdng_isole;
+                for(int i=0; i<hdng_isole.size(); i++)
+                {
+                    if(compreso(hdng_isole[i],45,135)) hdng_isole[i]=90;
+                    if(compreso(hdng_isole[i],136,225)) hdng_isole[i]=180;
+                    if(compreso(hdng_isole[i],226,315)) hdng_isole[i]=270;
+                    if(hdng_isole[i]!=-5 && (hdng_isole[i] <=45 || hdng_isole[i] >= 316)) hdng_isole[i]=0;
+
+                }
+
+                switch(quante_isole){
+                    case 2: ///INCROCIO (?) DRITTO CON DUE ISOLE
+                        h1 = hdng_isole[0];
+                        h2 =hdng_isole[1];
+                        if(h1 > h2) swap(h1,h2);
+
+                        if(!trovato_verde){
+                            if(h1==90 || h2 == 90 ){
+                            cout<<"HO TROVATO UN INCROCIO (a 2) DA ANDARE DRITTO(senza verde)\n";
+                            setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+                            last_errore=last_errore/2;
+                            }
+
+                            if(h1==0 && h2==180){ ///INCROCIO A T, MORTA
+                                cout<<"allarme: incrocio a T senza verde. torno indietro\n";
+                                setSpeeds(-30,-30);
+                                ///wait(100);?????'
+                            }
+                        }
+                        else{ ///TROVATO VERDE!
+                            if(dove == 's')
+                                    curva90('s',linea_y[fino_a_dove]/20 + 20);
+                                    ///vacci a sinistra!
+                            if(dove == 'd')
+                                 curva90('d',linea_y[fino_a_dove]/20 + 20);
+                                ///vacci a dx!
+
+                        }
+
+                    break;
+                    case 3:
+                        h1 = hdng_isole[0];
+                        h2 = hdng_isole[1];
+                        h3 = hdng_isole[2];
+
+                        if(!trovato_verde){
+                            if(!isole_corta && h2==90 /*&& h1==0 && h3 == 180*/ && linea_corta){
+                                ///SE SEI NELLE ISOLE CON LA LA LINEA CORTA ALLROA SEGUI QUELLO
+                                cout<<"HO TROVATO UN INCROCIO ( a 3) DA ANDARE DRITTO(senza verde)\n";
+                                errore = calcola_errore(hd_copia[1],linea_x[fino_a_dove],linea_y[fino_a_dove]); ///
+                                last_errore=errore;
+                                setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+                                last_errore=last_errore/2;
+                            }
+                            /*if(isole_corta && !linea_corta){
+                                ///SE HAI TROVATO ISOLE CORTE O VAI AVANTI NORMALE, O NON FARE UN CAZZO
+                                setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+                                last_errore=last_errore/2;
+                            } E' GIA STATO TRATTATO ALL'INIZIO!!!*/
+                            if(isole_corta && linea_corta){
+                                cout<<"ALLARME: linea corta e isole corte. torno indietro\n";
+                                setSpeeds(-30,-30);
+                                ///wait(100);?????'
+                            }
+                            if(!isole_corta && !linea_corta && h2==90){
+                            cout<<"incrocio tre, devo andare dritto ma sto a metà. magari gira la camera gotta, non soh";
+                                errore = calcola_errore(hd_copia[1],linea_x[2],linea_y[2]);
+                                last_errore=errore;
+                                setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+                                last_errore=last_errore/2;
+                            }
+
+                        }
+                        else{ ///TROVATO VERDE
+                            if(dove == 'e'){
+                                cout<<"ALLARME: verde strano su inc. a 3\n";
+                                setSpeeds(-30,-30);
+                                ///?ruotare la camera?
+                            }
+                            //wait(distanza_isole); ///APPROPINQUATI ALL'INCROCIO, POI GIRA;
+                            if(dove == 's'){
+                                cout<<"incrocio a tre con verde : GIRO A SINISTRA (MAGARI SOSTITUITE IL COMANDO)\n";
+                                curva90('s',linea_y[fino_a_dove]/20 + 20);
+                            }
+                            if(dove == 'd'){
+                                cout<<"incrocio a tre con verde :GIIRO A DX (magari giralo sul serio)\n";
+                                curva90('d',linea_y[fino_a_dove]/20 + 20);
+                            }
+                        }
+
+                    break; ///FINE INCROCIO A TRE
+
+                }
+        } //endif TROVATO_ISOLE
+
+        if(!linea_corta){ ///SE NON HAI LA LINEA CORTA, ALLORA NELLA VARIABILE ERRORE STA SALVATO ERRORE. usarlo!
+            if(direzione_principale > 145) curva90('s');
+            else if(direzione_principale < 35) curva90('d');
+            else{
+                setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+                last_errore=last_errore/2;
+            }
+        }
+
+
+        //Fine movimento cose
+
+        //cout<<"\n----------SERIALE ALL ARDU: linea normale------------\n"<<endl;
+        ///ENDIF TROVATO LINEA
         #if DEBUG2
+
         cout<<"\n*************fine frame**************\n";
-        imwrite("immagine2.png", colore);//getchar();
+        video.write(colore);getchar();
         #endif // DEBUG2
 
         //Dilation(0,0);
-        //imshow("Original",frame);
+
         //imshow("Line", thr);
         //imshow("Elab", lns);
         //if(waitKey(30) >= 0) break;
@@ -987,10 +1358,8 @@ int main(int argc, char** argv )
 
 ////MERDA!!
 
-/**
-   // namedWindow("Line",1);
-    //namedWindow("Original",1);
-    //namedWindow("Elab",1);
+
+
     /*
     namedWindow("Settings",0);
     createTrackbar( "Erosion --- Element:\n 0: Rect \n 1: Cross \n 2: Ellipse", "Settings", &erosion_elem, max_elem);
@@ -999,4 +1368,46 @@ int main(int argc, char** argv )
     createTrackbar( "Dilation --- Kernel size:\n 2n +1", "Settings", &dilation_size, max_kernel_size);
     */
 
+                            /**
+///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<VECCHIO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                        if(h1==90 || h2 == 90 && (h1!=-5 && h2!=-5)) ///INCROCIO DRITTO CON BRACCIO DRITTO (e l'altro non si sa???wtf?)
+                        {
+                            ///fai cose,vai dritto? non so
+                            if(!trovato_verde){
+                            cout<<"HO TROVATO UN INCROCIO (a 2) DA ANDARE DRITTO(senza verde)\n";
+                            setSpeeds(30+(last_errore)/5,30-(last_errore)/5);
+                            last_errore=last_errore/2;
+                            }
+                            else
+                            {
+                                if(dove == 's'){
+                                    cout<<"HO TROVATO UN INCROCIO DA ANDARE A SX\n";
+                                    ///vacci a sinistra!
+                                }
+                                if(dove == 'd'){
+                                    cout<<"HO TROVATO UN INCROCIO DA ANDARE A DX\n";
+                                    ///vacci a dx!
+                                }
+                            }
+                        }
+                        if(h1==0 && h2==180) ///INCROCIO A T, MORTA
+                        {
+                            if(!trovato_verde){
+                            cout<<"allarme: incrocio a T senza verde. torno indietro\n";
+                            setSpeeds(-30,-30);
+                            ///wait(100);?????'
+                            }
+
+                            if(dove == 's'){
+                                    curva90('s',20);
+                                    ///vacci a sinistra!
+                                }
+                                if(dove == 'd'){
+                                     curva90('d',20);
+                                    ///vacci a dx!
+                                }
+                        }
+
+        ///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<VECCHIO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        */
 

@@ -1,4 +1,4 @@
-int setSpeeds(int x, int y){
+void setSpeeds(int x, int y){
     int pos1=1;
     int pos2=1;
     if(x<0)
@@ -41,4 +41,45 @@ int setSpeeds(int x, int y){
     */
     //cout << s << endl;
     serialport_write(fd,s.c_str()/*"MOT=1,1,030,030\n"*/);
+}
+
+void setPan(int a){
+	string s="";
+        char buffer[10];
+        s+="SER=1,";
+        sprintf(buffer, "%d", a);
+        if(a<100){
+            s+="0";
+            if(a<10){
+                s+="0";
+            }
+        }
+        s+=buffer;
+        s+="\n";
+        serialport_write(fd,s.c_str());
+}
+
+void setTilt(int a){
+	string s="";
+        char buffer[10];
+        s+="SER=2,";
+        sprintf(buffer, "%d", a);
+        if(a<100){
+            s+="0";
+            if(a<10){
+                s+="0";
+            }
+        }
+        s+=buffer;
+        s+="\n";
+        serialport_write(fd,s.c_str());
+}
+
+void attach(string s){
+    if (s=="pan"){
+        serialport_write(fd,"ATT=1\n");
+    }
+    if (s=="tilt"){
+        serialport_write(fd,"ATT=2\n");
+    }
 }

@@ -3,10 +3,19 @@
 
 #include "motors.cpp"
 #include<math.h>
-#include<string.h>
+#include<string>
+#include<stdlib.h>
+#include<stdio.h>
 
-int setSpeeds(int x, int y);
+using namespace std;
 
-int motOff();
+void setSpeeds(int x, int y);
+
+void motOff();
+
+void attach(string s);
+
+void setPan(int a);
+void setTilt(int a);
 
 #endif

@@ -35,7 +35,11 @@ motors.cpp
 /home/pi/Documents/robotica/motors.cpp
 math.h
 -
-string.h
+string
+-
+stdlib.h
+-
+stdio.h
 -
 
 /home/pi/Documents/robotica/seriale.h
@@ -64,6 +68,8 @@ queue
 map
 -
 math.h
+-
+fstream
 -
 seriale.h
 /home/pi/Documents/robotica/seriale.h
