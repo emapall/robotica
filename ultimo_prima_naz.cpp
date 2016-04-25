@@ -1297,11 +1297,11 @@ int main(int argc, char** argv )
                             }
                             //wait(distanza_isole); ///APPROPINQUATI ALL'INCROCIO, POI GIRA;
                             if(dove == 's'){
-                                cout<<"incrocio a tre con verde : GIRO A SINISTRA (MAGARI SOSTITUITE IL COMANDO)\n";
+                                cout<<"incrocio a tre con verde : GIRO A SINISTRA \n";
                                 curva90('s',linea_y[fino_a_dove]/20 + 20);
                             }
                             if(dove == 'd'){
-                                cout<<"incrocio a tre con verde :GIIRO A DX (magari giralo sul serio)\n";
+                                cout<<"incrocio a tre con verde :GIIRO A DX \n";
                                 curva90('d',linea_y[fino_a_dove]/20 + 20);
                             }
                         }
